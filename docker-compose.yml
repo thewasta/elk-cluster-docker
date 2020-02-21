@@ -1,0 +1,133 @@
+version: "3.6"
+services:
+  elasticsearch:
+    image: elasticsearch:7.6.0
+    container_name: elasticsearch
+    environment:
+      reindex.remote.whitelist: '192.168.1.142:9200'
+      cluster.initial_master_nodes: 'elasticsearch'
+      cluster.name: 'elastic-cluster'
+      node.name: 'elasticsearch'
+      node.master: 'true'
+      node.data: 'true'
+      bootstrap.memory_lock: 'true'
+      discovery.zen.ping.unicast.hosts: 'es02, es03'
+      discovery.zen.ping_timeout: '30s'
+      discovery.zen.minimum_master_nodes: '1'
+      gateway.recover_after_data_nodes: '1'
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+      network.host: '0.0.0.0'
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+    - esdata:/usr/share/elasticsearch/data
+    ports:
+    - 9200:9200
+    - 9300:9300
+    networks:
+      - docker_elk
+  es02:
+    image: elasticsearch:7.6.0
+    container_name: es02
+    environment:
+      cluster.name: 'elastic-cluster'
+      node.name: 'es02'
+      node.master: 'false'
+      node.data: 'true'
+      bootstrap.memory_lock: 'true'
+      discovery.zen.ping.unicast.hosts: 'elasticsearch, es03'
+      discovery.zen.ping_timeout: '30s'
+      discovery.zen.minimum_master_nodes: '1'
+      gateway.recover_after_data_nodes: '2'
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+      network.host: '0.0.0.0'
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+    - es02data:/usr/share/elasticsearch/data
+    networks:
+      - docker_elk
+  es03:
+    image: elasticsearch:7.6.0
+    container_name: es03
+    environment:
+      cluster.name: 'elastic-cluster'
+      node.name: 'es03'
+      node.master: 'false'
+      node.data: 'true'
+      bootstrap.memory_lock: 'true'
+      discovery.zen.ping.unicast.hosts: 'elasticsearch, es02'
+      discovery.zen.ping_timeout: '30s'
+      discovery.zen.minimum_master_nodes: '1'
+      gateway.recover_after_data_nodes: '2'
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+      network.host: '0.0.0.0'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+    volumes:
+      - es03data:/usr/share/elasticsearch/data
+    networks:
+      - docker_elk
+  logstash:
+    container_name: logstash
+    image: logstash:7.6.0
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+    ports:
+    - 5044:5044
+    - "12201:12201/udp"
+    networks:
+      - docker_elk
+    depends_on:
+      - elasticsearch
+  kibana:
+    container_name: kibana
+    image: kibana:7.6.0
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+    ports:
+    - 5601:5601
+    networks:
+      - docker_elk
+    depends_on:
+      - elasticsearch
+  metricbeat:
+    image: docker.elastic.co/beats/heartbeat:7.6.0
+    container_name: metricbeat
+    resources:
+      limits:
+        cpus: '1'
+        memory: 2G
+    networks:
+      - docker_elk
+    volumes:
+    - metricbeat:/usr/share/metricbeat/data
+networks:
+  docker_elk:
+volumes:
+  esdata:
+  es02data:
+  es03data:
+  metricbeat:
